@@ -1,0 +1,151 @@
+<!doctype html>
+<html lang="fr"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Cuisine de Hyrule</title>
+<style>
+:root{--bg:#f6f1e4;--card:#fffdf6;--ink:#2b2a24;--mut:#7a7667;--acc:#2f7d6b;--line:#e3dccb;--red:#d6453d}
+@media(prefers-color-scheme:dark){:root{--bg:#171a18;--card:#202522;--ink:#ece8da;--mut:#9a9684;--acc:#5cc2a8;--line:#323833;--red:#ee6a62}}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.4 system-ui,sans-serif;padding:16px;max-width:760px;margin:auto}
+h1{font-size:1.4rem;margin:4px 0 12px}
+input,select,textarea,button{font:inherit;color:inherit;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:10px 12px}
+input,select,textarea{width:100%}button{cursor:pointer}button.p{background:var(--acc);color:#fff;border-color:var(--acc)}
+.tabs{display:flex;gap:8px;margin-bottom:12px}.tabs button{flex:1}.tabs .on{background:var(--acc);color:#fff;border-color:var(--acc)}
+.chips{display:flex;gap:6px;overflow-x:auto;padding:10px 0}.chips button{white-space:nowrap;padding:6px 12px;border-radius:99px}.chips .on{background:var(--acc);color:#fff}
+.card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:12px;margin-bottom:10px;display:flex;gap:12px}
+.pic{width:64px;height:64px;border-radius:14px;background:var(--bg);display:grid;place-items:center;font-size:34px;overflow:hidden;flex:none}.pic img{width:100%;height:100%;object-fit:cover}
+.card h3{margin:0 0 2px;font-size:1.05rem}.heart{color:var(--red);letter-spacing:1px}.mut{color:var(--mut);font-size:.9rem}
+.tag{display:inline-block;background:var(--bg);border:1px solid var(--line);border-radius:99px;padding:1px 9px;font-size:.8rem;margin:3px 4px 0 0}
+.row{display:flex;gap:8px;margin-bottom:8px}.row>*{flex:1}.row .s{flex:none}
+.ok{color:var(--acc);font-weight:600}.mini{padding:4px 10px;font-size:.85rem}
+dialog{border:1px solid var(--line);border-radius:16px;background:var(--card);color:var(--ink);width:min(92vw,440px)}
+dialog label{display:block;margin:8px 0 3px;font-size:.85rem;color:var(--mut)}
+</style></head><body>
+<h1>🍲 Cuisine de Hyrule</h1>
+<div class="tabs"><button id="t1" class="on">Recettes</button><button id="t2">Mon inventaire</button></div>
+
+<section id="v1">
+  <div class="row"><input id="q" type="search" placeholder="Chercher un ingrédient ou un plat (ex : carotte)"><button class="p s" id="add">+ Recette</button></div>
+  <div class="chips" id="chips"></div>
+  <div id="list"></div>
+</section>
+
+<section id="v2" hidden>
+  <div class="row"><input id="in" placeholder="Ingrédient (ex : Carotte)" autocomplete="off"><input id="iq" type="number" min="1" value="1" style="max-width:80px"><button class="p s" id="ia">Ajouter</button></div>
+  <div class="chips" id="sg" style="padding-top:0"></div>
+  <div id="inv"></div>
+  <h2 style="font-size:1.1rem">✨ Meilleur plan de cuisine</h2>
+  <div id="plan"></div>
+</section>
+
+<dialog id="dlg"><form method="dialog" id="f">
+  <h3 id="ft">Nouvelle recette</h3>
+  <label>Nom</label><input id="fn" required>
+  <label>Emoji</label><input id="fe" maxlength="4" value="🍲">
+  <label>URL de l'image (facultatif)</label><input id="fi" placeholder="https://…">
+  <label>Ingrédients (un par ligne, ex : Carotte x2)</label><textarea id="fg" rows="4" required></textarea>
+  <label>Cœurs restaurés</label><input id="fh" type="number" step="0.25" min="0" value="1">
+  <label>Catégorie de bonus</label><select id="fc"></select>
+  <label>Détail du bonus (facultatif)</label><input id="fb" placeholder="ex : Résistance au froid, niveau 1">
+  <div class="row" style="margin-top:14px"><button type="button" id="fx">Annuler</button><button class="p" id="fs">Enregistrer</button></div>
+</form></dialog>
+
+<script>
+const CATS={froid:"❄️ Contre le froid",chaleur:"🔥 Contre la chaleur",force:"💪 Force",defense:"🛡️ Défense",vitesse:"💨 Vitesse",furtivite:"🥷 Furtivité",endurance:"⚡ Endurance",elec:"🌩️ Anti-électricité",coeurs:"💖 Cœurs bonus",aucun:"Sans bonus"};
+// Données de départ : exemples à vérifier / corriger avec le bouton ✏️
+const SEED=[
+["Pomme cuite","🍎",[["Pomme",1]],1,"aucun",""],
+["Œuf dur","🥚",[["Œuf d'oiseau",1]],2,"aucun",""],
+["Viande grillée","🥩",[["Viande",1]],2,"aucun",""],
+["Poisson grillé","🐟",[["Poisson",1]],2,"aucun",""],
+["Carotte rôtie","🥕",[["Carotte",1]],1,"aucun",""],
+["Ragoût de carotte","🍲",[["Carotte",1],["Lait frais",1]],3,"aucun",""],
+["Viande pimentée","🌶️",[["Poivron piquant",1],["Viande",1]],3,"froid","Résistance au froid"],
+["Salade glacée","🍈",[["Hydromelon",2]],2,"chaleur","Résistance à la chaleur"],
+["Brochette musclée","🍢",[["Chardon puissant",1],["Viande",1]],3,"force","Attaque augmentée"],
+["Radis du héros","🥗",[["Radis robuste",2]],0,"coeurs","Cœurs bonus"],
+["Plat blindé","🥘",[["Armoranthe",1],["Viande",1]],3,"defense","Défense augmentée"],
+["Champignons véloces","🍄",[["Rushroom",2]],1,"vitesse","Vitesse augmentée"],
+["Plat furtif","🥷",[["Nigelle bleue",1],["Viande",1]],2,"furtivite","Discrétion accrue"],
+["Plat électrique","⚡",[["Safflina électrique",2]],1,"elec","Résistance à l'électricité"]
+].map((r,i)=>({id:"s"+i,name:r[0],emoji:r[1],img:"",ing:r[2].map(([n,q])=>({n,q})),hearts:r[3],bonus:r[4],bonusTxt:r[5]}));
+
+let R=JSON.parse(localStorage.getItem("botw_r")||"null")||SEED;
+let INV=JSON.parse(localStorage.getItem("botw_i")||"{}");
+let cat="all",editing=null;
+const $=id=>document.getElementById(id);
+const norm=s=>s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"").trim();
+const esc=s=>String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const save=()=>{localStorage.setItem("botw_r",JSON.stringify(R));localStorage.setItem("botw_i",JSON.stringify(INV))};
+const hearts=h=>{if(!h)return"—";const f=Math.floor(h),half=h-f>=.5;return"♥".repeat(Math.min(f,10))+(half?"♡":"")+(f>10?" +"+(f-10):"")+` <span class="mut">(${h})</span>`};
+
+function ingNames(){return[...new Set(R.flatMap(r=>r.ing.map(i=>i.n)))].sort()}
+function sorted(a){return a.sort((x,y)=>y.hearts-x.hearts||(y.bonus!=="aucun")-(x.bonus!=="aucun")||x.ing.length-y.ing.length)}
+
+function card(r,extra=""){
+  return `<div class="card"><div class="pic">${r.img?`<img src="${esc(r.img)}" alt="" onerror="this.remove()">`:esc(r.emoji)}</div>
+  <div style="flex:1"><h3>${esc(r.name)}</h3><div class="heart">${hearts(r.hearts)}</div>
+  <div>${r.ing.map(i=>`<span class="tag">${esc(i.n)}${i.q>1?" ×"+i.q:""}</span>`).join("")}</div>
+  ${r.bonus!=="aucun"?`<div class="mut">${CATS[r.bonus]}${r.bonusTxt?" · "+esc(r.bonusTxt):""}</div>`:""}${extra}</div></div>`}
+
+function render(){
+  $("chips").innerHTML=[["all","Tout"],...Object.entries(CATS)].map(([k,v])=>`<button data-c="${k}" class="${cat===k?"on":""}">${v}</button>`).join("");
+  const q=norm($("q").value);
+  let L=R.filter(r=>(cat==="all"||r.bonus===cat)&&(!q||norm(r.name).includes(q)||r.ing.some(i=>norm(i.n).includes(q))));
+  $("list").innerHTML=sorted(L).map((r,i)=>card(r,`<div style="margin-top:6px"><button class="mini" data-e="${r.id}">✏️ Modifier</button> <button class="mini" data-d="${r.id}">🗑️</button></div>`)).join("")||'<p class="mut">Aucune recette trouvée.</p>';
+  const ks=Object.keys(INV);
+  $("inv").innerHTML=ks.length?ks.map(k=>`<div class="row"><span>${esc(k)} <b>×${INV[k]}</b></span><button class="mini s" data-m="${esc(k)}">−1</button><button class="mini s" data-x="${esc(k)}">🗑️</button></div>`).join(""):'<p class="mut">Ajoute ce que tu as sur toi.</p>';
+  $("plan").innerHTML=plan();
+}
+
+function plan(){
+  const inv={};for(const k in INV)inv[norm(k)]=INV[k];
+  const can=r=>r.ing.every(i=>(inv[norm(i.n)]||0)>=i.q);
+  const steps={};let total=0;
+  for(let n=0;n<40;n++){
+    const best=sorted(R.filter(can))[0];
+    if(!best)break;
+    best.ing.forEach(i=>inv[norm(i.n)]-=i.q);
+    steps[best.id]=(steps[best.id]||0)+1;total+=best.hearts;
+  }
+  const ids=Object.keys(steps);
+  if(!ids.length)return'<p class="mut">Aucune recette possible avec cet inventaire.</p>';
+  return `<p class="ok">Total : ${total} cœurs</p>`+ids.map(id=>{const r=R.find(x=>x.id===id);return card(r,`<div class="ok">À cuisiner ×${steps[id]}</div>`)}).join("");
+}
+
+function open(r){
+  editing=r?r.id:null;$("ft").textContent=r?"Modifier la recette":"Nouvelle recette";
+  $("fc").innerHTML=Object.entries(CATS).map(([k,v])=>`<option value="${k}">${v}</option>`).join("");
+  $("fn").value=r?r.name:"";$("fe").value=r?r.emoji:"🍲";$("fi").value=r?r.img:"";
+  $("fg").value=r?r.ing.map(i=>i.n+(i.q>1?" x"+i.q:"")).join("\n"):"";
+  $("fh").value=r?r.hearts:1;$("fc").value=r?r.bonus:"aucun";$("fb").value=r?r.bonusTxt:"";
+  $("dlg").showModal();
+}
+$("f").addEventListener("submit",()=>{
+  const ing=$("fg").value.split("\n").map(l=>l.trim()).filter(Boolean).map(l=>{const m=l.match(/^(.*?)\s*[x×]\s*(\d+)$/i);return m?{n:m[1],q:+m[2]}:{n:l,q:1}});
+  const o={id:editing||"c"+Date.now(),name:$("fn").value.trim(),emoji:$("fe").value||"🍲",img:$("fi").value.trim(),ing,hearts:+$("fh").value||0,bonus:$("fc").value,bonusTxt:$("fb").value.trim()};
+  editing?R=R.map(r=>r.id===editing?o:r):R.push(o);
+  save();render();
+});
+$("fx").onclick=()=>$("dlg").close();
+$("add").onclick=()=>open();
+$("q").oninput=render;
+$("t1").onclick=()=>{$("v1").hidden=false;$("v2").hidden=true;$("t1").className="on";$("t2").className=""};
+$("t2").onclick=()=>{$("v1").hidden=true;$("v2").hidden=false;$("t2").className="on";$("t1").className="";render()};
+$("in").oninput=()=>{
+  const q=norm($("in").value);
+  $("sg").innerHTML=q?ingNames().filter(n=>norm(n).includes(q)&&norm(n)!==q).slice(0,6).map(n=>`<button data-s="${esc(n)}">${esc(n)}</button>`).join(""):"";
+};
+$("ia").onclick=()=>{$("sg").innerHTML="";const n=$("in").value.trim();if(!n)return;const k=Object.keys(INV).find(x=>norm(x)===norm(n))||n;INV[k]=(INV[k]||0)+(+$("iq").value||1);$("in").value="";$("iq").value=1;save();render()};
+document.body.addEventListener("click",e=>{
+  const t=e.target,g=a=>t.dataset[a];
+  if(g("s")){$("in").value=g("s");$("sg").innerHTML="";return}
+  if(g("c"))cat=g("c");
+  else if(g("e"))return open(R.find(r=>r.id===g("e")));
+  else if(g("d")){if(confirm("Supprimer cette recette ?"))R=R.filter(r=>r.id!==g("d"))}
+  else if(g("m")){INV[g("m")]--;if(INV[g("m")]<=0)delete INV[g("m")]}
+  else if(g("x"))delete INV[g("x")];
+  else return;
+  save();render();
+});
+render();
+</script></body></html>
