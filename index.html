@@ -16,7 +16,7 @@ input,select,textarea{width:100%}button{cursor:pointer}button.p{background:var(-
 .card h3{margin:0 0 2px;font-size:1.05rem}.heart{color:var(--red);letter-spacing:1px}.mut{color:var(--mut);font-size:.9rem}
 .tag{display:inline-block;background:var(--bg);border:1px solid var(--line);border-radius:99px;padding:1px 9px;font-size:.8rem;margin:3px 4px 0 0}
 .row{display:flex;gap:8px;margin-bottom:8px}.row>*{flex:1}.row .s{flex:none}
-.hs{display:inline-flex;flex-wrap:wrap;gap:2px;vertical-align:middle}.hs svg{width:18px;height:17px}.ok{color:var(--acc);font-weight:600}.mini{padding:4px 10px;font-size:.85rem}
+.hs{display:inline-flex;flex-wrap:wrap;gap:2px;vertical-align:middle}.hs svg{width:18px;height:17px}.qn{width:72px;text-align:center}.nm{flex:1;align-self:center}h4{margin:16px 0 6px;font-size:.95rem}.hl{border:1px solid var(--acc);border-radius:12px;padding:6px;background:var(--card)}.ok{color:var(--acc);font-weight:600}.mini{padding:4px 10px;font-size:.85rem}
 dialog{border:1px solid var(--line);border-radius:16px;background:var(--card);color:var(--ink);width:min(92vw,440px)}
 dialog label{display:block;margin:8px 0 3px;font-size:.85rem;color:var(--mut)}
 </style></head><body>
@@ -32,12 +32,13 @@ dialog label{display:block;margin:8px 0 3px;font-size:.85rem;color:var(--mut)}
 <section id="v2" hidden>
   <div class="row"><input id="in" placeholder="Ingrédient (ex : Carotte)" autocomplete="off"><input id="iq" type="number" min="1" value="1" style="max-width:80px"><button class="p s" id="ia">Ajouter</button></div>
   <div class="chips" id="sg" style="padding-top:0"></div>
-  <div class="row"><select id="ig"><option value="">Type : détection auto</option><option>Monstre</option><option>Insecte</option><option value="Autre">Autre</option></select></div>
+  <div class="row"><select id="ig"><option value="">Type : détection auto</option><option>Viande</option><option>Poisson</option><option>Fruits</option><option>Légumes</option><option>Champignons</option><option>Plantes</option><option>Monstre</option><option>Insecte</option><option>Autre</option></select></div>
   <div id="inv"></div>
 </section>
 
 <section id="v3" hidden>
-  <p class="mut">Les meilleures recettes avec ton inventaire. « Fait 1 fois » retire les ingrédients.</p>
+  <div class="row"><label class="mut">❤️ Mes cœurs<input id="mh" type="number" min="3" max="30"></label><label class="mut">Marge (+)<input id="mm" type="number" min="0"></label></div>
+  <p class="mut">Seules les recettes qui restaurent au plus « cœurs + marge » sont proposées. « Fait 1 fois » retire les ingrédients.</p>
   <div id="plan"></div>
 </section>
 
@@ -46,7 +47,7 @@ dialog label{display:block;margin:8px 0 3px;font-size:.85rem;color:var(--mut)}
   <label>Nom</label><input id="fn" required>
   <label>Emoji</label><input id="fe" maxlength="4" value="🍲">
   <label>URL de l'image (facultatif)</label><input id="fi" placeholder="https://…">
-  <label>Ingrédients (un par ligne, ex : Carotte x2 ; ou [Monstre] / [Insecte] pour « n'importe lequel »)</label><textarea id="fg" rows="4" required></textarea>
+  <label>Ingrédients (un par ligne, ex : Carotte x2 ; ou [Viande], [Fruits], [Monstre]… pour « n'importe lequel »)</label><textarea id="fg" rows="4" required></textarea>
   <label>Cœurs restaurés</label><input id="fh" type="number" step="0.25" min="0" value="1">
   <label>Catégorie de bonus</label><select id="fc"></select>
   <label>Détail du bonus (facultatif)</label><input id="fb" placeholder="ex : Résistance au froid, niveau 1">
@@ -60,6 +61,7 @@ const SEED=[];
 let R=JSON.parse(localStorage.getItem("botw_r")||"null")||SEED;
 let INV=JSON.parse(localStorage.getItem("botw_i")||"{}");
 let cat="all",editing=null;
+let H=+localStorage.getItem("botw_h")||3,M=localStorage.getItem("botw_m")===null?2:+localStorage.getItem("botw_m");
 const $=id=>document.getElementById(id);
 const norm=s=>s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"").trim();
 const esc=s=>String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -68,7 +70,19 @@ const HP="M12 21s-9-6.2-9-12.2C3 5 5.6 3 8.3 3c1.7 0 3.1.9 3.7 2.2C12.6 3.9 14 3
 const hearts=h=>{if(!h)return'<span class="mut">—</span>';const n=Math.min(Math.ceil(h),10);let o='<span class="hs">';for(let i=0;i<n;i++){const p=Math.max(0,Math.min(1,h-i));o+=`<svg viewBox="0 0 24 22"><path d="${HP}" fill="var(--line)"/><path d="${HP}" fill="var(--red)" style="clip-path:inset(0 ${(1-p)*100}% 0 0)"/></svg>`}return o+(h>10?` <b>+${+(h-10).toFixed(2)}</b>`:"")+`</span> <span class="mut">${h}</span>`};
 const lbl=n=>{const m=n.match(/^\[(.+)\]$/);return m?m[1]+" (au choix)":n};
 let T=JSON.parse(localStorage.getItem("botw_t")||"{}");
-const gOf=k=>T[norm(k)]||(/croc|corne|griffe|aile|oeil|queue|gelee|bokoblin|moblin|lezalfos|hinox|keese|chuchu|octorok|molduga|wizzrobe|lynel/.test(norm(k))?"Monstre":/grenouille|lezard|luciole|libellule|sauterelle|criquet|scarabee|papillon|fourmi|cigale|escargot|limace|cafard|coccinelle|grillon/.test(norm(k))?"Insecte":"");
+const CATI={Viande:"🥩",Poisson:"🐟",Fruits:"🍎",Légumes:"🥕",Champignons:"🍄",Plantes:"🌿",Monstre:"👹",Insecte:"🐞",Autre:"📦"};
+const CR=[["Monstre",/croc|corne|griffe|aile|oeil|œil|queue|gelee|bokoblin|moblin|lezalfos|hinox|keese|chuchu|octorok|molduga|wizzrobe|lynel/],["Insecte",/grenouille|lezard|luciole|libellule|sauterelle|criquet|scarabee|papillon|fourmi|cigale|escargot|limace|cafard|coccinelle|grillon/],["Champignons",/champignon|shroom|truffe/],["Viande",/viande|gigot|cuisse|volaille|poulet|steak|jambon/],["Poisson",/poisson|saumon|truite|carpe|esturgeon|dorade|thon|\bbar\b/],["Légumes",/carotte|radis|poireau|chou|courge|poivron|navet|tomate|oignon|citrouille|piment|pomme de terre/],["Fruits",/pomme|banane|noix de coco|melon|baie|raisin|cerise|orange|fruit|citron|poire|peche/],["Plantes",/chardon|armoranth|nigelle|safflina|herbe|fleur|lys|plante|racine|noix|gland|feuille|menthe/]];
+const gOf=k=>T[norm(k)]||(CR.find(([,r])=>r.test(norm(k)))||[""])[0];
+function invHTML(){
+  const q=norm($("in").value);let ks=Object.keys(INV),head="";
+  if(!ks.length)return'<p class="mut">Ajoute ce que tu as sur toi.</p>';
+  if(q){const m=ks.filter(k=>norm(k).includes(q));
+    if(!m.length)return`<p class="mut">« ${esc($("in").value.trim())} » n'est pas encore dans ton inventaire.</p>`;
+    ks=m;head='<p class="ok">✔ Déjà dans ton inventaire :</p>'}
+  const row=k=>`<div class="row inv${q?" hl":""}"><span class="nm">${esc(k)}</span><button class="mini s" data-m="${esc(k)}">−</button><input class="s qn" type="number" min="0" value="${INV[k]}" data-q="${esc(k)}"><button class="mini s" data-p="${esc(k)}">+</button><button class="mini s" data-x="${esc(k)}">🗑️</button></div>`;
+  const by={};ks.sort((a,b)=>norm(a).localeCompare(norm(b))).forEach(k=>{const c=gOf(k)||"Autre";(by[c]=by[c]||[]).push(k)});
+  return head+Object.keys(CATI).filter(c=>by[c]).map(c=>`<h4>${CATI[c]} ${c} <span class="mut">(${by[c].length})</span></h4>`+by[c].map(row).join("")).join("");
+}
 function take(r,inv){const c={...inv};for(const i of r.ing){let need=i.q;const g=i.n.match(/^\[(.+)\]$/);const ks=Object.keys(c).filter(k=>g?norm(gOf(k))===norm(g[1]):norm(k)===norm(i.n)).sort((a,b)=>c[b]-c[a]);for(const k of ks){const t=Math.min(need,c[k]);c[k]-=t;need-=t;if(!need)break}if(need)return null}return c}
 
 if(localStorage.getItem("botw_v")!=="3"){R=R.filter(r=>!/^s\d+$/.test(r.id));localStorage.setItem("botw_v","3");save()}
@@ -86,21 +100,20 @@ function render(){
   const q=norm($("q").value);
   let L=R.filter(r=>(cat==="all"||r.bonus===cat)&&(!q||norm(r.name).includes(q)||r.ing.some(i=>norm(i.n).includes(q))));
   $("list").innerHTML=sorted(L).map((r,i)=>card(r,`<div style="margin-top:6px"><button class="mini" data-e="${r.id}">✏️ Modifier</button> <button class="mini" data-d="${r.id}">🗑️</button></div>`)).join("")||(R.length?'<p class="mut">Aucune recette trouvée.</p>':'<p class="mut">Aucune recette pour l\'instant. Ajoute la première avec « + Recette ».</p>');
-  const ks=Object.keys(INV);
-  $("inv").innerHTML=ks.length?ks.map(k=>`<div class="row"><span>${esc(k)} <b>×${INV[k]}</b> ${gOf(k)?`<span class="tag">${gOf(k)}</span>`:""}</span><button class="mini s" data-m="${esc(k)}">−1</button><button class="mini s" data-p="${esc(k)}">+1</button><button class="mini s" data-x="${esc(k)}">🗑️</button></div>`).join(""):'<p class="mut">Ajoute ce que tu as sur toi.</p>';
+  $("inv").innerHTML=invHTML();
   $("plan").innerHTML=plan();
 }
 
 function plan(){
   let inv={...INV};const steps={};let total=0;
   for(let n=0;n<60;n++){
-    const best=sorted(R.filter(r=>take(r,inv)))[0];
+    const best=sorted(R.filter(r=>r.hearts<=H+M&&take(r,inv)))[0];
     if(!best)break;
     inv=take(best,inv);
     steps[best.id]=(steps[best.id]||0)+1;total+=best.hearts;
   }
   const ids=Object.keys(steps);
-  if(!ids.length)return'<p class="mut">Aucune recette possible avec cet inventaire.</p>';
+  if(!ids.length)return'<p class="mut">Aucune recette possible avec cet inventaire et ce nombre de cœurs.</p>';
   return `<p class="ok">Total : ${total} cœurs</p>`+ids.map(id=>{const r=R.find(x=>x.id===id);return card(r,`<div class="ok">À cuisiner ×${steps[id]}</div><button class="p mini" data-f="${id}">✅ Fait 1 fois</button>`)}).join("");
 }
 
@@ -121,15 +134,18 @@ $("f").addEventListener("submit",()=>{
 $("fx").onclick=()=>$("dlg").close();
 $("add").onclick=()=>open();
 $("q").oninput=render;
+$("mh").value=H;$("mm").value=M;
+$("mh").oninput=$("mm").oninput=()=>{H=+$("mh").value||0;M=+$("mm").value||0;localStorage.setItem("botw_h",H);localStorage.setItem("botw_m",M);render()};
 ["1","2","3"].forEach(n=>$("t"+n).onclick=()=>{["1","2","3"].forEach(m=>{$("v"+m).hidden=m!==n;$("t"+m).className=m===n?"on":""});render()});
 $("in").oninput=()=>{
   const q=norm($("in").value);
   $("sg").innerHTML=q?ingNames().filter(n=>norm(n).includes(q)&&norm(n)!==q).slice(0,6).map(n=>`<button data-s="${esc(n)}">${esc(n)}</button>`).join(""):"";
+  render();
 };
 $("ia").onclick=()=>{$("sg").innerHTML="";const n=$("in").value.trim();if(!n)return;const k=Object.keys(INV).find(x=>norm(x)===norm(n))||n;INV[k]=(INV[k]||0)+(+$("iq").value||1);if($("ig").value)T[norm(k)]=$("ig").value;$("in").value="";$("iq").value=1;save();render()};
 document.body.addEventListener("click",e=>{
   const t=e.target,g=a=>t.dataset[a];
-  if(g("s")){$("in").value=g("s");$("sg").innerHTML="";return}
+  if(g("s")){$("in").value=g("s");$("sg").innerHTML="";render();return}
   if(g("c"))cat=g("c");
   else if(g("e"))return open(R.find(r=>r.id===g("e")));
   else if(g("d")){if(confirm("Supprimer cette recette ?"))R=R.filter(r=>r.id!==g("d"))}
@@ -138,6 +154,12 @@ document.body.addEventListener("click",e=>{
   else if(g("f")){const c=take(R.find(r=>r.id===g("f")),INV);if(c)INV=Object.fromEntries(Object.entries(c).filter(([,v])=>v>0))}
   else if(g("x"))delete INV[g("x")];
   else return;
+  save();render();
+});
+document.body.addEventListener("change",e=>{
+  const k=e.target.dataset.q;if(k===undefined)return;
+  const v=Math.max(0,Math.floor(+e.target.value||0));
+  if(v)INV[k]=v;else delete INV[k];
   save();render();
 });
 render();
